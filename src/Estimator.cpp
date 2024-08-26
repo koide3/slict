@@ -66,6 +66,7 @@
 // ROS
 #include "std_msgs/Header.h"
 #include "std_msgs/String.h"
+#include "std_msgs/Int32MultiArray.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "nav_msgs/Odometry.h"
 #include "nav_msgs/Path.h"
@@ -691,7 +692,7 @@ public:
         publish_map = GetBoolParam("/publish_map", true);
 
         // Subscribe to the lidar-imu package
-        data_sub = nh_ptr->subscribe("/sensors_sync", 100, &Estimator::DataHandler, this);
+        data_sub = nh_ptr->subscribe("/sensors_sync", 10000, &Estimator::DataHandler, this);
 
         // Advertise the outputs
         kfcloud_pub = nh_ptr->advertise<sensor_msgs::PointCloud2>("/kfcloud", 10);
@@ -776,7 +777,7 @@ public:
         printf("ioa_max_iter: %d\n", ioa_max_iter);
 
         // Subscribe to the relocalization
-        relocSub = nh_ptr->subscribe("/reloc_pose", 100, &Estimator::RelocCallback, this);
+        relocSub = nh_ptr->subscribe("/reloc_pose", 10000, &Estimator::RelocCallback, this);
 
         // pmSurfGlobal = CloudXYZIPtr(new CloudXYZI());
         // pmEdgeGlobal = CloudXYZIPtr(new CloudXYZI());
@@ -3816,10 +3817,6 @@ public:
                                  histDis, icpMaxIter, icpFitnessThres, icpFitnessRes, icpCheckTime);
         lastICPFn = icpFitnessRes;
 
-        // Return if icp check fails
-        if (!icp_passed)
-            return;
-
         tf_W_Bcurr_final = myTf(tfm_W_Bcurr_final).cast<double>();
 
         printf("%sICP %s. T_W(%03d)_B(%03d). Fn: %.3f. icpTime: %.3f.\n"
@@ -3831,6 +3828,10 @@ public:
                 tf_W_Bcurr_start.yaw(),   tf_W_Bcurr_start.pitch(), tf_W_Bcurr_start.roll(),
                 tf_W_Bcurr_final.pos.x(), tf_W_Bcurr_final.pos.y(), tf_W_Bcurr_final.pos.z(),
                 tf_W_Bcurr_final.yaw(),   tf_W_Bcurr_final.pitch(), tf_W_Bcurr_final.roll());
+
+        // Return if icp check fails
+        if (!icp_passed)
+            return;
 
         // Add the loop to buffer
         loopPairs.push_back(LoopPrior(prevPoseId, currPoseId, 1e-3, icpFitnessRes,
@@ -3910,7 +3911,50 @@ public:
         LAST_LOOP_COUNT = newLoopCount;
 
         // Solve the pose graph optimization problem
-        OptimizePoseGraph(KfCloudPose, loopPairs, report);
+        const auto loop_pairs = OptimizePoseGraph(KfCloudPose, loopPairs, report);
+
+        static ros::Publisher path_pub = nh_ptr->advertise<nav_msgs::Path>("/loop_path", 100);
+        if (path_pub.getNumSubscribers() > 0) {
+            auto msg = std::make_shared<nav_msgs::Path>();
+            msg->header.frame_id = "map";
+
+            msg->poses.resize(KfCloudPose->size());
+            for(int i=0; i < KfCloudPose->size(); i++) {
+                const auto& pose = KfCloudPose->at(i);
+
+                auto& dst = msg->poses[i];
+                dst.header.stamp = ros::Time(pose.t);
+                dst.header.frame_id = "map";
+
+                dst.pose.position.x = pose.x;
+                dst.pose.position.y = pose.y;
+                dst.pose.position.z = pose.z;
+
+                dst.pose.orientation.x = pose.qx;
+                dst.pose.orientation.y = pose.qy;
+                dst.pose.orientation.z = pose.qz;
+                dst.pose.orientation.w = pose.qw;
+            }
+
+            printf("Publishing path (%d)\n", KfCloudPose->size());
+            path_pub.publish(*msg);
+            printf("done");
+        }
+
+        static ros::Publisher pairs_pub = nh_ptr->advertise<std_msgs::Int32MultiArray>("/loop_pairs", 100);
+        if (pairs_pub.getNumSubscribers() > 0) {
+            auto msg = std::make_shared<std_msgs::Int32MultiArray>();
+            msg->data.resize(loop_pairs.size() * 2);
+            for(int i=0; i < loop_pairs.size(); i++) {
+                msg->data[i*2] = loop_pairs[i].first;
+                msg->data[i*2+1] = loop_pairs[i].second;
+            }
+
+            printf("Publishing pairs (%d)\n", loop_pairs.size());
+            pairs_pub.publish(*msg);
+            printf("done");
+        }
+
 
         TicToc tt_rebuildmap;
 
@@ -3968,13 +4012,14 @@ public:
         report.rebuildmap_time = tt_rebuildmap.GetLastStop();
     }
 
-    void OptimizePoseGraph(CloudPosePtr &kfCloud, const deque<LoopPrior> &loops, BAReport &report)
+    std::vector<std::pair<int, int>> OptimizePoseGraph(CloudPosePtr &kfCloud, const deque<LoopPrior> &loops, BAReport &report)
     {
         TicToc tt_pgopt;
 
         static int BA_NUM = -1;
 
         int KF_NUM = kfCloud->size();
+        std::vector<std::pair<int, int>> factor_pairs;
 
         ceres::Problem problem;
         ceres::Solver::Options options;
@@ -4049,6 +4094,8 @@ public:
                                                              odom_q_noise*loop_weight, odom_p_noise*loop_weight);
             ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(relodomfactor, NULL, PARAM_POSE[prev_idx], PARAM_POSE[curr_idx]);
             res_ids_loop.push_back(res_id);
+
+            factor_pairs.emplace_back(curr_idx, prev_idx);
         }
         
         Util::ComputeCeresCost(res_ids_relpose, cost_relpose_init, problem);
@@ -4082,6 +4129,8 @@ public:
         baReport.JK_relpose     = cost_relpose_final;
         baReport.J0_loop        = cost_loop_init;
         baReport.JK_loop        = cost_loop_final;
+
+        return factor_pairs;
     }
 
     void VisualizeLoop()
