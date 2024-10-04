@@ -156,7 +156,7 @@ public:
 
             // Subscribe to the lidar topic
             lidar_sub.push_back(nh_ptr->subscribe<sensor_msgs::PointCloud2>
-                                            (lidar_topic[i], 100,
+                                            (lidar_topic[i], 10000,
                                              boost::bind(&SensorSync::PcHandler, this,
                                                          _1, i, extrinsicTf(3, 2), (int)extrinsicTf(3, 3))));
         }
@@ -205,7 +205,7 @@ public:
         t_B_I = extrinsicTf.block<3, 1>(0, 3);
 
         // Subscribe to the IMU topic
-        imu_sub = nh_ptr->subscribe<sensor_msgs::Imu>(imu_topic, 10000, &SensorSync::ImuHandler, this);
+        imu_sub = nh_ptr->subscribe<sensor_msgs::Imu>(imu_topic, 100000, &SensorSync::ImuHandler, this);
 
         /* #endregion IMU -------------------------------------------------------------------------------------------*/
 

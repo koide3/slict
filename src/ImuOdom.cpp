@@ -191,10 +191,10 @@ int main(int argc, char **argv)
 
     // Subscribe to the IMU topic
     string imu_topic = nh_ptr->param("/imu_topic", imu_topic);
-    ros::Subscriber imu_sub = nh_ptr->subscribe(imu_topic, 10, imuCB);
+    ros::Subscriber imu_sub = nh_ptr->subscribe(imu_topic, 100000, imuCB);
 
     // Subscribe to the odom topic
-    ros::Subscriber odom_sub = nh_ptr->subscribe("/opt_odom", 10, odomCB);
+    ros::Subscriber odom_sub = nh_ptr->subscribe("/opt_odom", 100000, odomCB);
 
     ros::MultiThreadedSpinner spinner(0);
     spinner.spin();

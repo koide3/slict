@@ -102,8 +102,8 @@ ds_rate:            [
 sweep_len:          1
 
 # Threshold to add new keyframe
-kf_min_dis:         5.0
-kf_min_angle:       20
+kf_min_dis:         2.5
+kf_min_angle:       10
 refine_kf:          0
 
 # Optimization parameters
@@ -146,11 +146,11 @@ loop_kf_nbr:        20    # Number of neighbour to check for loop closure
 loop_kfid_mindiff:  20    # Only check for loop when keyframes have this much difference
 
 icpMaxIter:         100   # Maximum iterations for ICP
-icpFitnessThres:    0.6   # Fitness threshold for ICP check
-histDis:            15    # Maximum correspondence distance for icp
+icpFitnessThres:    1.0   # Fitness threshold for ICP check
+histDis:            10    # Maximum correspondence distance for icp
 
 # Bundle adjustment params
-rib_edge:           100
+rib_edge:           10
 odom_q_noise:       0.1
 odom_p_noise:       0.1
 loop_weight:        0.05

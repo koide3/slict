@@ -3,8 +3,6 @@ autoexit:           1
 
 # Declare the lidar topics to merge
 lidar_topic:        [
-                      "/os_cloud_node/points"
-                      ,
                       "/livox/lidar_ouster"
                     ]
 
@@ -14,16 +12,10 @@ merged_lidar_topic: "/merged_pc"
 # NOTE TO USER: The (4,4) entry of the extrinsics is used to declare
 # whether stamp is at beginning (1.000) or end (0.000) of scan
 lidar_extr:         [
-                      # Ouster
-                      0.999913504074182800, -0.01116636551106650,  -0.0069495792219705765, -0.04894521120476690,
-                     -0.011356389542500523, -0.99954530068657550,  -0.0279324952688129200, -0.03126929060277820,
-                     -0.006634514801262056,  0.02800900135057546,  -0.9995856536869142000, -0.01755515794190739,
-                      0.0,                   0.0,                   0.0,                    0.0
-                      ,
                       # Livox
-                      1.0,                   0.0,                   0.0,                    0.020,
-                      0.0,                  -1.0,                   0.0,                    0.000,
-                      0.0,                   0.0,                  -1.0,                    0.037,
+                      1.0,                   0.0,                   0.0,                    0.000,
+                      0.0,                   1.0,                   0.0,                    0.000,
+                      0.0,                   0.0,                   1.0,                    0.000,
                       0.0,                   0.0,                   0.0,                    1.000
                     ]
 
@@ -31,16 +23,16 @@ lidar_extr:         [
 min_range:          1.0
 
 # IMU topic
-imu_topic:          "/vn200/imu"
+imu_topic:          "/livox/imu"
 
 # Gravity constant
-GRAV:               9.82
+GRAV:               1.0
 
 # IMU noises
-GYR_N:              1
-GYR_W:              2
-ACC_N:              0.1
-ACC_W:              2
+GYR_N:              2
+GYR_W:              4
+ACC_N:              0.2
+ACC_W:              4
 
 # Position prior weight
 POSE_N:             20
@@ -49,14 +41,14 @@ POSE_N:             20
 VEL_N:              10
 
 # Weightage of a basic lidar factor
-lidar_weight:       4
+lidar_weight:       2
 
 # Bias bounds
 BG_BOUND:           [ 0.3,  0.3,  0.4]
 BA_BOUND:           [ 0.3,  0.3,  0.4]
 
 # Number of packets to process at time
-WINDOW_SIZE:        5
+WINDOW_SIZE:        3
 # Number of substates to give to each packet
 N_SUB_SEG:          16
 # Spline order
@@ -68,7 +60,7 @@ start_fix_span:     0.0
 # Period at the end of the spline to fix
 final_fix_span:    -1.0
 # Steps to reassociate
-reassociate_steps:  4
+reassociate_steps:  2
 # Deskew choice, 0 for IMU prop, 1 for SPLINE, 1 for before and 1 for after
 deskew_method:      [ 0, 0 ]
 # Rate of doing reassociation
@@ -77,7 +69,7 @@ reassoc_rate:       0
 use_ceres:          0
 
 # Downsampling grid size, chose -1 for no downsampling
-leaf_size:          0.1           # Downsample scale of input pointcloud, also the scale of ufomap leaf
+leaf_size:          0.05           # Downsample scale of input pointcloud, also the scale of ufomap leaf
 assoc_spacing:      0.4
 surfel_map_depth:   16
 surfel_min_point:   6
@@ -88,13 +80,11 @@ surfel_min_plnrty:  0.4
 use_ufm:            1
 
 # Distance to surfel and min score thresholds
-dis_to_surfel_max:  0.3
+dis_to_surfel_max:  0.5
 score_min:          0.0
 
 # Downsample coefficient of lidar scans, ds_rate = n means keep every n-th point.
 ds_rate:            [
-                      1
-                      ,
                       1
                     ]
 
@@ -102,9 +92,9 @@ ds_rate:            [
 sweep_len:          1
 
 # Threshold to add new keyframe
-kf_min_dis:         1.0
-kf_min_angle:       20
-refine_kf:          0
+kf_min_dis:         2.5
+kf_min_angle:       10
+refine_kf:          1
 
 # Optimization parameters
 lidar_loss_thres:  -10.0
@@ -134,9 +124,9 @@ fuse_marg:          0
 
 regularize_imu:     0
 imu_init_time:      0.5
-lite_redeskew:      0
-max_outer_iters:    5
-max_lidar_factor:   2000  # Maximum number of lidar factors
+lite_redeskew:      1
+max_outer_iters:    3
+max_lidar_factor:   4000  # Maximum number of lidar factors
 dj_thres:           0.0
 dx_thres:           0.5
 
@@ -148,7 +138,7 @@ loop_time_mindiff:  10
 
 icpMaxIter:         100   # Maximum iterations for ICP
 icpFitnessThres:    1.0   # Fitness threshold for ICP check
-histDis:            5    # Maximum correspondence distance for icp
+histDis:            10    # Maximum correspondence distance for icp
 
 # Bundle adjustment params
 rib_edge:           10

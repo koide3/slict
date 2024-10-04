@@ -1,0 +1,79 @@
+<launch>
+      <param name="/use_sim_time" value="true" />
+
+      <arg name="publish_clock" default="--clock"/>
+      <arg name="autorun"       default="1"/>
+      <arg name="loop_en"       default="1"/>
+      <arg name="show_report"   default="0"/>
+
+      <!-- Enable prior map -->
+      <arg name="use_prior_map" default="0"/>
+
+      <!-- Directory to log the bundle adjustment poses, pointclouds, and others-->
+      <arg name="exp_log_dir" default="/home/$(env USER)/slict_logs/mcdviral"/>
+
+      <!-- MCDVIRAL dataset, downloadable at mcdviral.github.io. -->
+      <!-- <arg name="data_path"       default="/media/tmn/mySataSSD1/DATASETS/MCDVIRAL/PublishedSequences"/> -->
+      <arg name="data_path"       default="/datasets/nakao"/>
+      <arg name="seq_name"        default="gaisyuu1"/>
+
+      <arg  name="bag_file"  default="$(arg data_path)/$(arg seq_name).bag"/>
+
+      <!-- Chose the config file based on the sequence names -->
+      <arg name="config_file" value="$(find slict)/config/flatwall.yaml" />
+
+      <!-- Load the param -->
+      <rosparam file="$(arg config_file)" command="load"/>
+      <!-- Set some exp related params -->
+      <param name="/autoexit" type="int"    value="$(arg autorun)" />
+      <param name="/loop_en"  type="int"    value="$(arg loop_en)" />
+      <param name="/log_dir"  type="string" value="$(arg exp_log_dir)" />
+
+      <!-- Run the livox to ouster converter -->
+      <node pkg="slict" required="true" type="slict_livox_to_ouster" name="slict_livox_to_ouster" respawn="false" output="log" if="false">
+            <!-- <remap from="/livox/lidar"  to="/livox/lidar_hybrid"/> -->
+      </node>
+      <node pkg="slict" required="true" type="slict_livox_points_to_ouster" name="slict_livox_to_ouster" respawn="false" output="log" if="true">
+            <!-- <remap from="/livox/lidar"  to="/livox/lidar_hybrid"/> -->
+      </node>
+
+      <!-- Run the sensor sync -->
+      <node pkg="slict" required="true" type="slict_sensorsync" name="slict_sensorsync" respawn="false" output="log"/>
+
+      <!-- Run the relocalization -->
+      <node if="$(eval use_prior_map > 0)" pkg="slict" required="true" type="slict_relocalization" name="slict_relocalization" respawn="false" output="screen">
+            <param name="relocalization/descriptor_file_path" type="string" value="$(arg descriptor_path)"/>
+      </node>
+
+      <!-- Run the Estimator -->
+      <param name="/prior_map_dir"  type="string" value="" />
+      <param name="/use_prior_map"  type="int"    value="$(arg use_prior_map)" />
+      <param name="/show_report"    type="int"    value="$(arg show_report)"   />
+      <param name="/slam_ref_frame" type="string" value="odom"/>
+      <node pkg="slict" required="true" type="slict_estimator" name="slict_estimator" respawn="false" output="screen"/>
+      <!-- <node pkg="slict" required="true" type="slict_estimator" name="slict_estimator" respawn="false" output="screen"
+            launch-prefix="gdb -ex run - -args"/> -->
+
+      <!-- Run the imu predictor -->
+      <node pkg="slict" type="slict_imu_odom" name="slict_imu_odom" respawn="true" output="screen"/>
+
+      <!--- Run Rviz-->
+      <node pkg="rviz" type="rviz" name="rviz_slam" respawn="true" output="log" if="true"
+            args="-d $(find slict)/launch/mcdviral.rviz" />
+
+      <!-- An offset time -->
+      <arg name="start_time" value="0" if="$(eval 'ntu_day_10' in bag_file)"/>
+      <arg name="start_time" value="0" if="$(eval 'ntu_day_10' not in bag_file)"/>
+
+      <!-- Record bag results -->
+      <node pkg="rosbag" type="record" name="rosbag_recorder" args="-O $(arg data_path)/results/$(arg seq_name).bag /pred_odom_W_V /sw_ctr_pose /tf /tf_static /opt_odom /opt_odom_high_freq /opt_odom_inM /loop_path /loop_pairs"/>
+
+      <!-- Play the bag file -->
+      <arg name="wait_time" value="$(eval use_prior_map*10 + 1)" />
+      <node required="false" pkg="rosbag" type="play" name="rosbag_player"
+            args="$(arg publish_clock) $(arg bag_file) -r 1.0 -s $(arg start_time)"
+            launch-prefix="bash -c 'sleep $(arg wait_time); $0 $@' "/>
+
+      <!-- <node pkg="tf" type="static_transform_publisher" name="base2view" args="0 0 0 0 0 0 world local 1"/> -->
+
+</launch>

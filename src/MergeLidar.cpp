@@ -191,7 +191,7 @@ public:
 
             // Subscribe to the lidar topic
             lidar_sub.push_back(nh_ptr->subscribe<sensor_msgs::PointCloud2>
-                                            (lidar_topic[i], 100,
+                                            (lidar_topic[i], 10000,
                                              boost::bind(&MergeLidar::PcHandler, this,
                                                          _1, i, (int)extrinsicTf(3, 3),
                                                          extrinsicTf(3, 2))));

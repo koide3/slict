@@ -142,7 +142,7 @@ public:
         /* #region Lidar --------------------------------------------------------------------------------------------*/
         
         // Subcribe to the lidar keyframes
-        lidarCloudSub = nh_ptr->subscribe("/kfcloud_std", 100, &Relocalization::PCHandler, this);
+        lidarCloudSub = nh_ptr->subscribe("/kfcloud_std", 10000, &Relocalization::PCHandler, this);
 
         // Avertise the reloc pose topic
         relocPub = nh_ptr->advertise<geometry_msgs::PoseStamped>("/reloc_pose", 100);
